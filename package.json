@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "node -e \"console.log('Build estatico pronto para Netlify')\""
+  },
   "dependencies": {
     "@netlify/blobs": "^8.2.0"
   }
