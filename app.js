@@ -2032,10 +2032,16 @@ function createApiStore() {
     });
 
     const text = await response.text();
-    const data = text ? JSON.parse(text) : {};
+    let data = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error("A rota da API retornou HTML em vez de JSON. Verifique o redirecionamento /api/* na Netlify.");
+    }
     if (!response.ok) {
       throw new Error(data.error || "Erro na API online.");
     }
+    normalizeSnapshot(data);
     return data;
   }
 
@@ -2139,6 +2145,17 @@ function createApiStore() {
       await mutate("orders/cancel", { id });
     }
   };
+}
+
+function normalizeSnapshot(snapshot) {
+  snapshot.settings = { ...structuredClone(DEFAULT_SETTINGS), ...(snapshot.settings || {}) };
+  snapshot.products = Array.isArray(snapshot.products) ? snapshot.products : [];
+  snapshot.users = Array.isArray(snapshot.users) ? snapshot.users : [];
+  snapshot.orders = Array.isArray(snapshot.orders) ? snapshot.orders : [];
+  snapshot.logs = Array.isArray(snapshot.logs) ? snapshot.logs : [];
+  snapshot.currentUser = snapshot.currentUser || null;
+  snapshot.needsSetup = Boolean(snapshot.needsSetup);
+  snapshot.dataMode = snapshot.dataMode || "api";
 }
 
 function isEditingForm() {

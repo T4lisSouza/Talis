@@ -28,6 +28,28 @@ Sistema online de pedidos para pequena empresa, com frontend estático e backend
 
 Não é necessário criar Firebase, Supabase ou configurar chaves de API.
 
+## Conferir se a API está ativa
+
+Depois do deploy, abra:
+
+```text
+https://SEU-SITE.netlify.app/api/health
+```
+
+A resposta deve ser um JSON parecido com:
+
+```json
+{ "ok": true, "service": "pedido-api" }
+```
+
+Para conferir os produtos públicos:
+
+```text
+https://SEU-SITE.netlify.app/api/state
+```
+
+O JSON deve conter a chave `products` com os produtos cadastrados. Se essa rota mostrar o HTML do site em vez de JSON, publique novamente com o `netlify.toml` atualizado.
+
 ## Recursos incluídos
 
 - Catálogo público de produtos.

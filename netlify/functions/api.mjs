@@ -60,8 +60,12 @@ export const config = {
 export default async function handler(req) {
   try {
     const url = new URL(req.url);
-    const route = url.pathname.replace(/^\/api\/?/, "");
+    const route = normalizeRoute(url.pathname);
     const parts = route.split("/").filter(Boolean);
+
+    if (req.method === "GET" && (parts[0] === "health" || parts.length === 0)) {
+      return jsonResponse({ ok: true, service: "pedido-api", time: now() });
+    }
 
     if (req.method === "GET" && parts[0] === "state") {
       const db = await loadDb();
@@ -95,6 +99,12 @@ export default async function handler(req) {
     console.error(error);
     return jsonResponse({ error: error.message || "Erro interno." }, error.status || 500);
   }
+}
+
+function normalizeRoute(pathname) {
+  return pathname
+    .replace(/^\/api\/?/, "")
+    .replace(/^\/\.netlify\/functions\/api\/?/, "");
 }
 
 async function loadDb() {
