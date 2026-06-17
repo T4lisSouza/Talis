@@ -299,7 +299,7 @@ function renderProductCard(product) {
       <div class="product-image">
         ${
           product.imageUrl
-            ? `<img src="${escapeAttr(product.imageUrl)}" alt="${escapeAttr(product.name)}" loading="lazy" />`
+            ? `<img src="${escapeAttr(resolveAssetUrl(product.imageUrl))}" alt="${escapeAttr(product.name)}" loading="lazy" />`
             : `<div class="placeholder"><i data-lucide="image"></i></div>`
         }
       </div>
@@ -1703,7 +1703,7 @@ async function generateReport(clientId = "all", month = currentMonth()) {
 
     doc.setTextColor(primary.r, primary.g, primary.b);
     doc.setFontSize(9);
-    doc.text("Sistema de Pedidos © 2026", 14, 286);
+    doc.text("Desenvolvido por Talis Souza © 2026", 14, 286);
   });
 
   const clientPart = clientId === "all" ? "todos-clientes" : slugify(clients[0].name || clients[0].username);
@@ -1742,7 +1742,7 @@ function applyBranding(settings = state.settings) {
   root.style.setProperty("--secondary", secondary);
   root.style.setProperty("--secondary-strong", shadeColor(secondary, -22));
   root.style.setProperty("--accent", settings.accentColor || DEFAULT_SETTINGS.accentColor);
-  root.style.setProperty("--cover-image", settings.coverUrl ? `url("${settings.coverUrl}")` : "none");
+  root.style.setProperty("--cover-image", settings.coverUrl ? `url("${resolveAssetUrl(settings.coverUrl)}")` : "none");
 
   document.title = settings.companyName || "Sistema de Pedidos";
   const brandName = document.getElementById("brandName");
@@ -1759,7 +1759,7 @@ function applyBranding(settings = state.settings) {
   }
   if (brandLogo) {
     brandLogo.innerHTML = settings.logoUrl
-      ? `<img src="${escapeAttr(settings.logoUrl)}" alt="${escapeAttr(settings.companyName || "Logo")}" />`
+      ? `<img src="${escapeAttr(resolveAssetUrl(settings.logoUrl))}" alt="${escapeAttr(settings.companyName || "Logo")}" />`
       : escapeHtml((settings.companyName || "T").charAt(0).toUpperCase());
   }
   if (footerLinks) footerLinks.innerHTML = renderFooterLinks();
@@ -1792,6 +1792,11 @@ function renderFooterLinks() {
         .join("")}
     </span>
   `;
+}
+
+function resolveAssetUrl(url) {
+  if (!url) return "";
+  return String(url);
 }
 
 function metric(label, value, hint) {
@@ -2022,27 +2027,42 @@ function createApiStore() {
   let refreshTimer = null;
 
   async function request(path, options = {}) {
-    const response = await fetch(`/api/${path}`, {
-      credentials: "include",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {})
-      }
-    });
+    const endpoints = [`/api/${path}`, `/.netlify/functions/backend/${path}`];
+    let lastError = null;
 
-    const text = await response.text();
-    let data = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      throw new Error("A rota da API retornou HTML em vez de JSON. Verifique o redirecionamento /api/* na Netlify.");
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          credentials: "include",
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {})
+          }
+        });
+
+        const text = await response.text();
+        let data = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          lastError = new Error("A rota da API retornou HTML em vez de JSON.");
+          continue;
+        }
+
+        if (!response.ok) {
+          lastError = new Error(data.error || "Erro na API online.");
+          continue;
+        }
+
+        normalizeSnapshot(data);
+        return data;
+      } catch (error) {
+        lastError = error;
+      }
     }
-    if (!response.ok) {
-      throw new Error(data.error || "Erro na API online.");
-    }
-    normalizeSnapshot(data);
-    return data;
+
+    throw lastError || new Error("Erro na API online.");
   }
 
   async function refresh(silent = false) {
