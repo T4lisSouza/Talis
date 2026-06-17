@@ -1,5 +1,9 @@
 [build]
+  command = "npm run build"
   publish = "."
+
+[build.environment]
+  NODE_VERSION = "20"
 
 [functions]
   directory = "netlify/functions"
@@ -7,7 +11,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "/.netlify/functions/backend/:splat"
   status = 200
   force = true
 
