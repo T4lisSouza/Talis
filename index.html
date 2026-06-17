@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sistema de Pedidos</title>
+    <meta
+      name="description"
+      content="Sistema online de gestao de pedidos, estoque, clientes e relatorios."
+    />
+    <link rel="preconnect" href="https://unpkg.com" />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <button class="brand" type="button" data-action="go" data-view="catalog" aria-label="Inicio">
+          <span class="brand-logo" id="brandLogo">T</span>
+          <span>
+            <strong id="brandName">Sistema de Pedidos</strong>
+            <small id="dataMode">Modo demonstracao</small>
+          </span>
+        </button>
+
+        <nav class="main-nav" aria-label="Navegacao principal">
+          <button type="button" class="nav-button is-active" data-action="go" data-view="catalog">
+            <i data-lucide="store"></i>
+            <span>Produtos</span>
+          </button>
+          <button type="button" class="nav-button" data-action="go" data-view="client">
+            <i data-lucide="shopping-bag"></i>
+            <span>Cliente</span>
+          </button>
+          <button type="button" class="nav-button" data-action="go" data-view="admin">
+            <i data-lucide="shield-check"></i>
+            <span>Admin</span>
+          </button>
+        </nav>
+
+        <div class="session-area" id="sessionArea"></div>
+      </header>
+
+      <main id="app" class="app-main" tabindex="-1"></main>
+
+      <footer class="footer" id="systemFooter">
+        <span>Sistema de Pedidos © 2026</span>
+        <span id="footerLinks"></span>
+      </footer>
+    </div>
+
+    <div class="toast-zone" id="toastZone" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
