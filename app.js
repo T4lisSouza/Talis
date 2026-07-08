@@ -683,7 +683,7 @@ function renderProductsAdmin() {
         </label>
         <label class="full">Upload de imagem
           <input name="imageFile" type="file" accept="image/*" />
-          <span class="field-hint">No Firebase, o arquivo vai para Storage. No modo demonstração, fica salvo no navegador.</span>
+          <span class="field-hint">A imagem fica salva online e aparece automaticamente para todos os usuarios.</span>
         </label>
         <div class="form-actions full">
           <button class="primary-button" type="submit">
@@ -2124,14 +2124,14 @@ function createApiStore() {
     },
 
     async uploadImage(file, folder) {
-      const dataUrl = await fileToDataUrl(file);
+      const prepared = await prepareImageUpload(file, folder);
       const result = await request("upload", {
         method: "POST",
         body: JSON.stringify({
           folder,
-          fileName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          dataUrl
+          fileName: prepared.fileName,
+          mimeType: prepared.mimeType,
+          dataUrl: prepared.dataUrl
         })
       });
       return result.url;
@@ -2189,6 +2189,97 @@ function fileToDataUrl(file) {
     reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+async function prepareImageUpload(file, folder = "products") {
+  if (!file) throw new Error("Selecione uma imagem.");
+  const mimeType = file.type || "application/octet-stream";
+  if (!mimeType.startsWith("image/")) {
+    throw new Error("Envie apenas arquivos de imagem.");
+  }
+
+  const maxDataUrlLength = 4_500_000;
+  const isSmallRaster = file.size <= 900_000 && mimeType !== "image/heic" && mimeType !== "image/heif";
+  if (isSmallRaster) {
+    const dataUrl = await fileToDataUrl(file);
+    if (dataUrl.length <= maxDataUrlLength) {
+      return { dataUrl, fileName: file.name || "imagem", mimeType };
+    }
+  }
+
+  const compressed = await compressImageFile(file, {
+    maxSide: folder === "branding" ? 1200 : 1400,
+    maxDataUrlLength
+  });
+  if (compressed) return compressed;
+
+  const dataUrl = await fileToDataUrl(file);
+  if (dataUrl.length > maxDataUrlLength) {
+    throw new Error("A imagem ficou grande demais. Envie uma imagem menor ou tire a foto em resolucao menor.");
+  }
+  return { dataUrl, fileName: file.name || "imagem", mimeType };
+}
+
+function compressImageFile(file, options = {}) {
+  const maxSide = options.maxSide || 1400;
+  const maxDataUrlLength = options.maxDataUrlLength || 4_500_000;
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const originalMax = Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height);
+      if (!originalMax) {
+        resolve(null);
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+
+      let targetSide = Math.min(maxSide, originalMax);
+      let quality = 0.82;
+      let best = null;
+
+      for (let attempt = 0; attempt < 7; attempt += 1) {
+        const scale = Math.min(1, targetSide / originalMax);
+        canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
+        canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        best = {
+          dataUrl,
+          fileName: `${String(file.name || "imagem").replace(/\.[^.]+$/, "")}.jpg`,
+          mimeType: "image/jpeg"
+        };
+
+        if (dataUrl.length <= maxDataUrlLength) {
+          resolve(best);
+          return;
+        }
+
+        targetSide = Math.max(720, Math.round(targetSide * 0.8));
+        quality = Math.max(0.58, quality - 0.07);
+      }
+
+      resolve(best && best.dataUrl.length <= maxDataUrlLength ? best : null);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(null);
+    };
+
+    image.src = objectUrl;
   });
 }
 
@@ -2384,12 +2475,8 @@ function createLocalStore() {
     },
 
     async uploadImage(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const prepared = await prepareImageUpload(file);
+      return prepared.dataUrl;
     },
 
     async saveUser(payload) {
