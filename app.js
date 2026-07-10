@@ -363,12 +363,13 @@ function renderAuth(mode, context) {
             </form>
           `
           : `
-            <form id="loginForm" class="form-grid">
+            <form id="loginForm" class="form-grid" autocomplete="off">
               <label class="full">Usuário ou e-mail
-                <input name="username" required autocomplete="username" placeholder="usuario@empresa.com" />
+                <input name="username" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Digite seu usuario" />
               </label>
               <label class="full">Senha
-                <input name="password" type="password" required autocomplete="current-password" />
+                <input name="password" type="password" required autocomplete="off" autocapitalize="none" spellcheck="false" />
+                <span class="field-hint">Digite a senha sem espacos antes ou depois.</span>
               </label>
               <div class="form-actions full">
                 <button class="primary-button" type="submit">
@@ -1377,7 +1378,7 @@ function handleChange(event) {
 
 async function submitLogin(form) {
   const username = form.username.value.trim();
-  const password = form.password.value;
+  const password = form.password.value.trim();
   const user = await store.login(username, password);
   state.view = user.role === "client" ? "client" : "admin";
   render();

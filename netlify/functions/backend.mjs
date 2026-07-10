@@ -122,8 +122,9 @@ async function login(req, body) {
   const db = await loadDb();
   required(body, ["username", "password"]);
   const loginValue = body.username.trim().toLowerCase();
+  const passwordValue = String(body.password).trim();
   const user = db.users.find((u) => u.usernameLower === loginValue || u.email?.toLowerCase() === loginValue);
-  if (!user || !verifyPassword(body.password, user)) fail(401, "Usuario ou senha invalidos.");
+  if (!user || !verifyPassword(passwordValue, user)) fail(401, "Usuario ou senha invalidos.");
   user.lastLogin = now();
   log(db, "Login", `${user.username} acessou o sistema.`);
   await saveDb(db);
