@@ -1449,8 +1449,12 @@ async function submitProduct(form) {
   });
 
   state.productEditId = null;
+  state.search = "";
+  if (typeof store.refresh === "function") {
+    await store.refresh();
+  }
   render();
-  toast("Produto salvo", "O catálogo foi atualizado.", "success");
+  toast("Produto salvo", `O catalogo online foi atualizado. Total: ${state.products.length} produto(s).`, "success");
 }
 
 async function submitUser(form) {
@@ -2107,6 +2111,10 @@ function createApiStore() {
       return snapshot;
     },
 
+    async refresh() {
+      return await refresh(false);
+    },
+
     async login(username, password) {
       const snapshot = await mutate("login", { username, password });
       return snapshot.currentUser;
@@ -2131,7 +2139,7 @@ function createApiStore() {
     },
 
     async saveProduct(product) {
-      await mutate("products/save", product);
+      return await mutate("products/save", product);
     },
 
     async deleteProduct(id) {
