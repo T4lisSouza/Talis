@@ -1348,6 +1348,9 @@ async function handleSubmit(event) {
     if (form.id === "reportFilterForm") submitReportFilter(form);
   } catch (error) {
     console.error(error);
+    if (form.id === "productForm") {
+      window.alert(error.message || "Nao foi possivel salvar o produto.");
+    }
     toast("Erro", error.message || "Não foi possível concluir a ação.", "error");
   }
 }
@@ -1435,6 +1438,7 @@ async function submitPasswordChange(form) {
 async function submitProduct(form) {
   assertPermission("products");
   const file = form.imageFile.files?.[0];
+  const productName = form.name.value.trim();
   let imageUrl = normalizeImageUrl(form.imageUrl.value.trim());
   if (file) {
     imageUrl = await store.uploadImage(file, "products");
@@ -1442,7 +1446,7 @@ async function submitProduct(form) {
 
   await store.saveProduct({
     id: form.id.value || undefined,
-    name: form.name.value.trim(),
+    name: productName,
     description: form.description.value.trim(),
     price: Number(form.price.value || 0),
     stock: Number(form.stock.value || 0),
@@ -1454,8 +1458,14 @@ async function submitProduct(form) {
   if (typeof store.refresh === "function") {
     await store.refresh();
   }
+  const savedProduct = state.products.find((product) => product.name.trim().toLowerCase() === productName.toLowerCase());
+  if (!savedProduct) {
+    throw new Error("O servidor respondeu, mas o produto ainda nao apareceu no catalogo online. Tente salvar novamente.");
+  }
+  state.view = "catalog";
+  state.search = productName;
   render();
-  toast("Produto salvo", `O catalogo online foi atualizado. Total: ${state.products.length} produto(s).`, "success");
+  toast("Produto salvo", `${savedProduct.name} ja esta visivel na loja.`, "success");
 }
 
 async function submitUser(form) {
