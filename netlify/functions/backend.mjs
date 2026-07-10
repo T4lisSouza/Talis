@@ -41,7 +41,6 @@ export default async function handler(req) {
     if (parts[0] === "logout") return await logout(req);
     if (parts[0] === "register") return await register(req, body);
     if (parts[0] === "password") return await changePassword(req, body);
-    if (parts[0] === "seed-products-once") return await seedProductsOnce(req);
     if (parts[0] === "upload") return await upload(req, body);
     if (parts[0] === "settings") return await saveSettings(req, body);
     if (parts[0] === "products") return await productAction(req, parts[1], body);
@@ -187,53 +186,6 @@ async function upload(req, body) {
   log(db, "Upload de imagem", `${user.username} enviou ${body.fileName}.`);
   await saveDb(db);
   return json({ url: `/api/files/${encodeURIComponent(key)}` });
-}
-
-async function seedProductsOnce(req) {
-  const token = new URL(req.url).searchParams.get("token");
-  if (token !== "seed-20260710-5a7f3c-produtos") fail(404, "Rota nao encontrada.");
-  const db = await loadDb();
-  const nowValue = now();
-  const products = [
-    {
-      id: "prod-validacao-001",
-      name: "Produto Validacao 1",
-      description: "Produto criado para validar exibicao publica do catalogo online.",
-      price: 19.9,
-      stock: 12,
-      imageUrl: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=80",
-      createdAt: nowValue,
-      updatedAt: nowValue
-    },
-    {
-      id: "prod-validacao-002",
-      name: "Produto Validacao 2",
-      description: "Produto criado para validar estoque, preco e imagem por URL.",
-      price: 29.9,
-      stock: 8,
-      imageUrl: "https://images.unsplash.com/photo-1606787366850-de6330128bfc?auto=format&fit=crop&w=1000&q=80",
-      createdAt: nowValue,
-      updatedAt: nowValue
-    },
-    {
-      id: "prod-validacao-003",
-      name: "Produto Validacao 3",
-      description: "Produto criado para confirmar que todos os visitantes conseguem ver o catalogo.",
-      price: 39.9,
-      stock: 5,
-      imageUrl: "https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?auto=format&fit=crop&w=1000&q=80",
-      createdAt: nowValue,
-      updatedAt: nowValue
-    }
-  ];
-  for (const product of products) {
-    const index = db.products.findIndex((item) => item.id === product.id);
-    if (index >= 0) db.products[index] = { ...db.products[index], ...product };
-    else db.products.push(product);
-  }
-  log(db, "Validacao de produtos", "Tres produtos de validacao foram cadastrados no catalogo online.");
-  await saveDb(db);
-  return json(publicState(db, null));
 }
 
 async function saveSettings(req, body) {
