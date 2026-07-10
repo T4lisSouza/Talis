@@ -686,8 +686,11 @@ function renderProductsAdmin() {
           <input name="imageFile" type="file" accept="image/*" />
           <span class="field-hint">A imagem fica salva online e aparece automaticamente para todos os usuarios.</span>
         </label>
+        <div id="productSaveStatus" class="save-status full" role="status" aria-live="polite">
+          Pronto para salvar no banco online.
+        </div>
         <div class="form-actions full">
-          <button class="primary-button" type="submit">
+          <button class="primary-button" type="button" data-action="save-product">
             <i data-lucide="save"></i>
             Salvar produto
           </button>
@@ -1253,6 +1256,13 @@ async function handleClick(event) {
     render();
   }
 
+  if (action === "save-product") {
+    const form = document.getElementById("productForm");
+    if (!form) return;
+    if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
+    await submitForm(form);
+  }
+
   if (action === "add-cart") {
     addToCart(button.dataset.id);
   }
@@ -1334,8 +1344,10 @@ async function handleClick(event) {
 async function handleSubmit(event) {
   if (!event.target.matches("form")) return;
   event.preventDefault();
-  const form = event.target;
+  await submitForm(event.target);
+}
 
+async function submitForm(form) {
   try {
     if (form.id === "loginForm") await submitLogin(form);
     if (form.id === "registerForm") await submitRegister(form);
@@ -1349,6 +1361,7 @@ async function handleSubmit(event) {
   } catch (error) {
     console.error(error);
     if (form.id === "productForm") {
+      setProductSaveStatus(error.message || "Nao foi possivel salvar o produto.", "error");
       window.alert(error.message || "Nao foi possivel salvar o produto.");
     }
     toast("Erro", error.message || "Não foi possível concluir a ação.", "error");
@@ -1437,13 +1450,16 @@ async function submitPasswordChange(form) {
 
 async function submitProduct(form) {
   assertPermission("products");
+  setProductSaveStatus("Enviando produto para o banco online...", "loading");
   const file = form.imageFile.files?.[0];
   const productName = form.name.value.trim();
   let imageUrl = normalizeImageUrl(form.imageUrl.value.trim());
   if (file) {
+    setProductSaveStatus("Enviando imagem para o armazenamento online...", "loading");
     imageUrl = await store.uploadImage(file, "products");
   }
 
+  setProductSaveStatus("Salvando dados do produto no servidor...", "loading");
   await store.saveProduct({
     id: form.id.value || undefined,
     name: productName,
@@ -1456,12 +1472,15 @@ async function submitProduct(form) {
   state.productEditId = null;
   state.search = "";
   if (typeof store.refresh === "function") {
+    setProductSaveStatus("Servidor confirmou. Atualizando catalogo publico...", "loading");
     await store.refresh();
   }
   const savedProduct = state.products.find((product) => product.name.trim().toLowerCase() === productName.toLowerCase());
   if (!savedProduct) {
+    setProductSaveStatus("Erro: o produto nao apareceu no catalogo apos salvar.", "error");
     throw new Error("O servidor respondeu, mas o produto ainda nao apareceu no catalogo online. Tente salvar novamente.");
   }
+  setProductSaveStatus("Produto salvo e encontrado no catalogo publico.", "success");
   state.view = "catalog";
   state.search = productName;
   render();
@@ -1841,6 +1860,13 @@ function roleBadge(role) {
 
 function emptyState(text) {
   return `<div class="empty-state">${escapeHtml(text)}</div>`;
+}
+
+function setProductSaveStatus(message, type = "info") {
+  const status = document.getElementById("productSaveStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.type = type;
 }
 
 function filteredProducts() {
