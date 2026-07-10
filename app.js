@@ -701,6 +701,47 @@ function renderProductsAdmin() {
     <section class="panel">
       <div class="panel-header">
         <div>
+          <h2>Cadastro rapido direto</h2>
+          <p>Use esta opcao se o botao acima nao salvar no seu navegador.</p>
+        </div>
+      </div>
+      <form id="quickProductForm" class="form-grid" autocomplete="off">
+        <label>Usuario master
+          <input name="username" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="talis" />
+        </label>
+        <label>Senha master
+          <input name="password" type="password" required autocomplete="off" />
+        </label>
+        <label>Nome
+          <input name="name" required />
+        </label>
+        <label>Preco
+          <input name="price" type="number" step="0.01" min="0" required />
+        </label>
+        <label>Estoque
+          <input name="stock" type="number" step="1" min="0" required />
+        </label>
+        <label>Imagem por URL
+          <input name="imageUrl" type="url" />
+        </label>
+        <label class="full">Descricao
+          <textarea name="description"></textarea>
+        </label>
+        <div id="quickProductStatus" class="save-status full" role="status" aria-live="polite">
+          Este cadastro salva direto no banco online.
+        </div>
+        <div class="form-actions full">
+          <button class="secondary-button" type="submit">
+            <i data-lucide="send"></i>
+            Salvar direto online
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
           <h2>Produtos cadastrados</h2>
           <p>${state.products.length} item(ns) no catálogo.</p>
         </div>
@@ -1354,6 +1395,7 @@ async function submitForm(form) {
     if (form.id === "setupForm") await submitInitialSetup(form);
     if (form.id === "passwordForm") await submitPasswordChange(form);
     if (form.id === "productForm") await submitProduct(form);
+    if (form.id === "quickProductForm") await submitQuickProduct(form);
     if (form.id === "userForm") await submitUser(form);
     if (form.id === "settingsForm") await submitSettings(form);
     if (form.id === "contactForm") await submitContact(form);
@@ -1363,6 +1405,10 @@ async function submitForm(form) {
     if (form.id === "productForm") {
       setProductSaveStatus(error.message || "Nao foi possivel salvar o produto.", "error");
       window.alert(error.message || "Nao foi possivel salvar o produto.");
+    }
+    if (form.id === "quickProductForm") {
+      setQuickProductStatus(error.message || "Nao foi possivel salvar direto online.", "error");
+      window.alert(error.message || "Nao foi possivel salvar direto online.");
     }
     toast("Erro", error.message || "Não foi possível concluir a ação.", "error");
   }
@@ -1485,6 +1531,46 @@ async function submitProduct(form) {
   state.search = productName;
   render();
   toast("Produto salvo", `${savedProduct.name} ja esta visivel na loja.`, "success");
+}
+
+async function submitQuickProduct(form) {
+  setQuickProductStatus("Enviando cadastro direto para o servidor...", "loading");
+  const productName = form.name.value.trim();
+  if (typeof store.quickSaveProduct !== "function") {
+    throw new Error("Cadastro direto disponivel somente no site publicado.");
+  }
+  await store.quickSaveProduct({
+    username: form.username.value.trim(),
+    password: form.password.value.trim(),
+    product: {
+      name: productName,
+      description: form.description.value.trim(),
+      price: Number(form.price.value || 0),
+      stock: Number(form.stock.value || 0),
+      imageUrl: normalizeImageUrl(form.imageUrl.value.trim())
+    }
+  });
+  if (typeof store.refresh === "function") {
+    setQuickProductStatus("Servidor confirmou. Atualizando catalogo publico...", "loading");
+    await store.refresh();
+  }
+  const savedProduct = state.products.find((product) => product.name.trim().toLowerCase() === productName.toLowerCase());
+  if (!savedProduct) {
+    setQuickProductStatus("Erro: o produto nao apareceu no catalogo apos salvar.", "error");
+    throw new Error("O produto foi enviado, mas nao apareceu no catalogo online.");
+  }
+  setQuickProductStatus("Produto salvo direto online e visivel na loja.", "success");
+  state.view = "catalog";
+  state.search = productName;
+  render();
+  toast("Produto salvo", `${savedProduct.name} ja esta visivel na loja.`, "success");
+}
+
+function setQuickProductStatus(message, type = "info") {
+  const status = document.getElementById("quickProductStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.type = type;
 }
 
 async function submitUser(form) {
@@ -2177,6 +2263,10 @@ function createApiStore() {
 
     async saveProduct(product) {
       return await mutate("products/save", product);
+    },
+
+    async quickSaveProduct(payload) {
+      return await mutate("quick-product/save", payload);
     },
 
     async deleteProduct(id) {

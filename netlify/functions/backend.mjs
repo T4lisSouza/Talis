@@ -44,6 +44,7 @@ export default async function handler(req) {
     if (parts[0] === "upload") return await upload(req, body);
     if (parts[0] === "settings") return await saveSettings(req, body);
     if (parts[0] === "products") return await productAction(req, parts[1], body);
+    if (parts[0] === "quick-product") return await quickProductAction(req, parts[1], body);
     if (parts[0] === "users") return await userAction(req, parts[1], body);
     if (parts[0] === "orders") return await orderAction(req, parts[1], body);
     return json({ error: "Rota nao encontrada." }, 404);
@@ -233,6 +234,37 @@ async function productAction(req, action, body) {
     return json(publicState(db, user));
   }
   fail(404, "Acao de produto nao encontrada.");
+}
+
+async function quickProductAction(req, action, body) {
+  if (action !== "save") fail(404, "Acao de produto nao encontrada.");
+  required(body, ["username", "password", "product"]);
+  const db = await loadDb();
+  const loginValue = String(body.username || "").trim().toLowerCase();
+  const passwordValue = String(body.password || "").trim();
+  const user = db.users.find((u) => u.usernameLower === loginValue || u.email?.toLowerCase() === loginValue);
+  if (!user || !verifyPassword(passwordValue, user)) fail(401, "Usuario ou senha invalidos.");
+  requirePermission(user, "products");
+
+  const input = body.product || {};
+  required(input, ["name", "price", "stock"]);
+  const product = {
+    id: input.id || id("prod"),
+    name: String(input.name || "").trim(),
+    description: String(input.description || "").trim(),
+    price: Number(input.price || 0),
+    stock: Math.max(0, Math.floor(Number(input.stock || 0))),
+    imageUrl: normalizeImageUrl(input.imageUrl || ""),
+    createdAt: input.createdAt || now(),
+    updatedAt: now()
+  };
+  const index = db.products.findIndex((p) => p.id === product.id);
+  if (index >= 0) db.products[index] = { ...db.products[index], ...product };
+  else db.products.push(product);
+  user.lastLogin = now();
+  log(db, index >= 0 ? "Produto editado direto" : "Produto criado direto", product.name);
+  await saveDb(db);
+  return json(publicState(db, user));
 }
 
 async function userAction(req, action, body) {
