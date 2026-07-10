@@ -1434,7 +1434,7 @@ async function submitPasswordChange(form) {
 async function submitProduct(form) {
   assertPermission("products");
   const file = form.imageFile.files?.[0];
-  let imageUrl = form.imageUrl.value.trim();
+  let imageUrl = normalizeImageUrl(form.imageUrl.value.trim());
   if (file) {
     imageUrl = await store.uploadImage(file, "products");
   }
@@ -1796,7 +1796,7 @@ function renderFooterLinks() {
 
 function resolveAssetUrl(url) {
   if (!url) return "";
-  return String(url);
+  return normalizeImageUrl(url);
 }
 
 function metric(label, value, hint) {
@@ -1834,6 +1834,21 @@ function filteredProducts() {
   return state.products.filter((product) =>
     [product.name, product.description].join(" ").toLowerCase().includes(term)
   );
+}
+
+function normalizeImageUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) return "";
+
+  const driveId =
+    value.match(/drive\.google\.com\/file\/d\/([^/]+)/i)?.[1] ||
+    value.match(/[?&]id=([^&]+)/i)?.[1];
+
+  if (driveId && /drive\.google\.com/i.test(value)) {
+    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(driveId)}&sz=w1200`;
+  }
+
+  return value;
 }
 
 function cartItems() {
